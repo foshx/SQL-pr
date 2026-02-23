@@ -1,0 +1,61 @@
+Задание 1. Маркетинговая акция
+В марте 2023 года маркетинг провёл акцию: чем чаще игрок заходил в игру, тем больше получал бесплатных кристаллов. Акция шла первые 3 недели марта.
+
+Вопрос: Видим ли мы позитивный эффект этой акции в метриках?
+
+Ваши задачи:
+Напишите в Metabase отдельные запросы для расчета:
+  DAU (количество уникальных пользователей за день),
+  WAU (количество уникальных пользователей за неделю),
+  MAU (количество уникальных пользователей за месяц).
+  Рассчитайте Sticky Factors (SFW и SFM)
+
+select * 
+     , dau::float / mau as sfm 
+     , dau::float / wau  as sfw 
+from 
+(select start_session as date
+     , count(*) over (partition by date_trunc('day', start_session)) as dau
+     , count(*) over (partition by date_trunc('week', start_session)) as wau
+     , count(*) over (partition by date_trunc('month', start_session)) as mau
+from skygame.game_sessions) t1
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Задание 2. Самые вовлечённые игроки
+Теперь мы планируем новую акцию: бонусы получат игроки, которые проводят в игре больше всего времени. 
+Но в первую очередь нас интересуют игроки, зарегистрированные в 2022 году.
+
+Ваши задачи:
+Вывести игроков, которые больше всех провели времени в игре: 
+  Учтите только сессии, у которых есть время окончания (end_session is not null).
+  Отфильтруйте только тех игроков, которые зарегистрировались в игре в 2022 году.
+  Выведите топ-25 игроков по этому показателю.
+
+select id_user
+     , sum(session_minutes) as sum_min
+from 
+    (select t1.id_user 
+         , extract(epoch from (end_session - start_session)) / 60 as session_minutes
+    from skygame.game_sessions t1 
+    join skygame.users t2 
+    on t1.id_user = t2.id_user
+    where end_session is not null 
+         and date_part('year', reg_date) = 2022) t
+group by id_user
+order by sum(session_minutes) desc 
+limit 25
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Задание 3. Чистота данных
+Мы заметили, что у части сессий не заполнено поле end_session. Нужно проверить масштаб проблемы.
+
+Ваши задачи:
+Найдите количество таких «битых» строк и их долю от общего числа строк.
+Посчитайте долю проблемных записей для каждого device_type (ios и android).
+
+select sum(case when end_session is null then 1.0 else 0.0 end) as problem_str
+     , count(*) as count_all 
+     , sum(case when end_session is null then 1.0 else 0.0 end) / count(*) as proportion 
+     , sum(case when dev_type = 'ios' and end_session is null then 1.0 else 0.0 end) / sum(case when end_session is null then 1.0 else 0.0 end) as ios
+     , sum(case when dev_type = 'android' and end_session is null then 1.0 else 0.0 end) / sum(case when end_session is null then 1.0 else 0.0 end) as android
+from skygame.game_sessions a
+join skygame.users b
+on a.id_user = b.id_user
