@@ -1,2 +1,44 @@
 Мы продолжаем работать над анализом мобильной игры Zombie Revolution, и сегодня мы сконцентрируемся в большей мере на вопросе финансов. 
 Будем активно работать с таблицей monetary, которая хранит список всех клиентских покупок.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Задание 1
+Факт: В ноябре и декабре 2022 года была опробована альтернативная стратегия привлечения клиентов.
+
+Проверьте следующую гипотезу: в ноябре и декабре 2022 года из-за более дорогой и таргетированной рекламы мы 
+приобрели более “лояльных” игроков, которые больше времени посвящают нашей игре.
+
+select case when reg_date >= '2022-11-01' and reg_date <= '2022-12-31' then '11-12' else 'other' end as flag 
+     , avg(end_session - start_session) as avg_dur
+from skygame.users t1 
+left join skygame.game_sessions t2 
+on t1.id_user = t2.id_user
+where end_session - start_session > interval '5 min'
+group by flag
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Задание 2
+Рассчитайте K-factor нашей игры.
+Рассчитайте, сколько пользователей нам принесет одна будущая среднестатистическая когорта в результате.
+(Рассчитаем средний объем когорты как общее количество пользователей разделить на количество месяцев наблюдаемого периода)
+
+with k_f as 
+(select 
+     sum(ref_reg) / count(distinct t1.id_user) as k_faktor
+from skygame.users t1 
+left join skygame.referral t2 
+on t1.id_user = t2.id_user), 
+
+cohort as 
+(select sum(cnt) / count(month) as c
+from
+    (select date_trunc('month', reg_date) as month 
+         , count(distinct t1.id_user) as cnt
+    from skygame.users t1 
+    join skygame.referral t2 
+    on t1.id_user = t2.id_user
+    group by month 
+    order by month) t)
+
+select c * k_faktor  
+from cohort t1 
+join k_f t2 
+on t1.c = t1.c
