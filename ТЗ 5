@@ -5,3 +5,93 @@
 Допустим, лояльным считается тот пользователь, который пригласил как минимум троих друзей, из которых как минимум один в результате зарегистрировался в нашей игре.
 Назовем данный критерий crit_invite.
 Рассчитайте динамику LMAU для критерия лояльности crit_invite.
+
+with crit_invite as 
+(select id_user
+from skygame.referral
+group by id_user 
+having count (*) > 3 
+     and sum(ref_reg) > 0)
+
+select date_trunc('month', start_session) as month 
+     , count(distinct id_user)
+from skygame.game_sessions 
+where id_user in (select * from crit_invite)
+group by date_trunc('month', start_session)
+order by month 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Задание 2
+Допустим, лояльным считается тот пользователь, который заплатил суммарно больше 1000 рублей за всё время (не строго).
+Назовем данный критерий crit_1000.
+Рассчитайте динамику LMAU для критерия лояльности crit_1000.
+
+with crit_1000 as 
+(select id_user
+from skygame.monetary m
+    join skygame.log_prices lp 
+    on m.id_item_buy = lp.id_item
+    and m.dtime_pay between valid_from and coalesce (valid_to, '3000-01-01')
+group by id_user
+having sum(cnt_buy * price) >= 1000)
+
+select date_trunc('month', start_session) as month
+     , count(distinct id_user)
+from skygame.game_sessions
+where id_user in (select * from crit_1000)
+group by month
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Задание 3
+Рассчитайте динамику LMAU для критерия лояльности crit_invite AND crit_1000. 
+То есть чтобы считаться лояльным, клиенту необходимо удовлетворять обоим условиям из задания 1 и задания 2.
+
+with crit_invite as 
+(select id_user
+from skygame.referral
+group by id_user 
+having count (*) > 3 
+     and sum(ref_reg) > 0)
+, 
+crit_1000 as 
+(select id_user
+from skygame.monetary m
+    join skygame.log_prices lp 
+    on m.id_item_buy = lp.id_item
+    and m.dtime_pay between valid_from and coalesce (valid_to, '3000-01-01')
+group by id_user
+having sum(cnt_buy * price) >= 1000)
+
+select date_trunc('month', start_session) as month 
+     , count(distinct id_user)
+from skygame.game_sessions 
+where id_user in (select * from crit_invite) and id_user in (select * from crit_1000)
+group by date_trunc('month', start_session)
+order by month 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Задание 4 
+Рассчитайте динамику LMAU для критерия лояльности crit_invite OR crit_1000. 
+То есть чтобы считаться лояльным, клиенту необходимо удовлетворять хотя бы одному условию из задания 1 и задания 2.
+
+with crit_invite as 
+(select id_user
+from skygame.referral
+group by id_user 
+having count (*) > 3 
+     and sum(ref_reg) > 0)
+, 
+crit_1000 as 
+(select id_user
+from skygame.monetary m
+    join skygame.log_prices lp 
+    on m.id_item_buy = lp.id_item
+    and m.dtime_pay between valid_from and coalesce (valid_to, '3000-01-01')
+group by id_user
+having sum(cnt_buy * price) >= 1000)
+
+select date_trunc('month', start_session) as month 
+     , count(distinct id_user)
+from skygame.game_sessions 
+where id_user in (select * from crit_invite) or id_user in (select * from crit_1000)
+group by date_trunc('month', start_session)
+order by month 
+
+
