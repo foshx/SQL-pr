@@ -35,25 +35,3 @@ where name_item = 'Crystal'
 group by month
 
 -- В результате повышения стоимости одного кристалла мы не увеличили выручку, игроки стали покупать меньше кристаллов. 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Задание 3
-Надо ли нам наше маркетинговое воздействие распределять на все когорты поровну? Возможно, какие-то когорты более «щедрые» на покупку игровых предметов.
-Рассчитайте среднюю выручку на одного человека на один месяц для каждой когорты.
-
-select extract(day from'2023-04-28' - cog) /30 months
-     , revenue 
-     , cog_size 
-     , cog
-     , avg_rev
-     , avg_rev / (extract(day from'2023-04-28' - cog) /30) rev_cog
-from (select date_trunc('month', reg_date) cog 
-     , sum(cnt_buy * price) revenue
-     , count(distinct m.id_user) cog_size
-     , sum(cnt_buy * price) / count(distinct m.id_user) avg_rev
-from skygame.monetary m 
-join skygame.log_prices lg
-    on m.id_item_buy = lg.id_item
-    and m.dtime_pay between valid_from and coalesce (valid_to, '2030-01-01')
-join skygame.users us
-    on m.id_user = us.id_user
-group by cog) t1
